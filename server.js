@@ -9,6 +9,8 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/env', (req, res) => res.redirect('/environment.html'));
+
 // ─── CONFIG ───────────────────────────────────────────
 const VOTE_INTERVAL_MS = 15_000;
 const VALID_SEASONS = ['printemps', 'ete', 'automne', 'hiver'];
@@ -157,6 +159,9 @@ io.on('connection', (socket) => {
     const n = Number(value);
     if (!Number.isFinite(n) || n < 0 || n > 100) return;
     votes.intensity.push(Math.round(n));
+    // Broadcast live intensity preview so environment reacts immediately
+    const avg = Math.round(votes.intensity.reduce((a, b) => a + b, 0) / votes.intensity.length);
+    io.emit('intensity:live', avg);
     console.log(`\x1b[90m[int]\x1b[0m ${socket.id} -> ${Math.round(n)}%`);
   });
 
@@ -176,12 +181,13 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`
-\x1b[1m╔═══════════════════════════════════════════╗
-║     M A N I P U L A T I O N  ·  Serveur  ║
-╠═══════════════════════════════════════════╣
-║  Interface : http://localhost:${PORT}         ║
-║  Unity     : ws://localhost:${PORT}?role=unity║
-║  Vote tick : ${VOTE_INTERVAL_MS / 1000}s                            ║
-╚═══════════════════════════════════════════╝\x1b[0m
+\x1b[1m╔═══════════════════════════════════════════════╗
+║     M A N I P U L A T I O N  ·  Serveur      ║
+╠═══════════════════════════════════════════════╣
+║  Vote       : http://localhost:${PORT}             ║
+║  Environnmt : http://localhost:${PORT}/env         ║
+║  Unity      : ws://localhost:${PORT}?role=unity    ║
+║  Vote tick  : ${VOTE_INTERVAL_MS / 1000}s                              ║
+╚═══════════════════════════════════════════════╝\x1b[0m
   `);
 });

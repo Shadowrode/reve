@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REVE — Environnement</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #020510; }
+    canvas#world { display: block; width: 100%; height: 100%; }
+
+    .hud {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 30px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      pointer-events: none; z-index: 10;
+    }
+    .hud-left, .hud-right { display: flex; align-items: center; gap: 14px; }
+    .hud-tag {
+      padding: 6px 16px; border-radius: 30px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.7);
+      font-size: 0.7rem; font-weight: 500;
+      letter-spacing: 1px; text-transform: uppercase;
+      backdrop-filter: blur(12px);
+      transition: all 1.5s ease;
+    }
+    .hud-tag.season { border-color: rgba(140,200,255,0.2); }
+    .hud-tag.alter  { border-color: rgba(180,140,255,0.2); }
+    .hud-tag.chaos  { border-color: rgba(251,113,133,0.3); color: #fb7185; }
+    .hud-tag .dot {
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; margin-right: 6px;
+      vertical-align: middle;
+    }
+    .hud-tag.season .dot { background: #60a5fa; }
+    .hud-tag.alter .dot  { background: #a78bfa; }
+    .hud-tag.chaos .dot  { background: #fb7185; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+    .hud-center {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 20px; border-radius: 30px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.06);
+      backdrop-filter: blur(12px);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 0.65rem; color: rgba(255,255,255,0.4);
+      letter-spacing: 2px; text-transform: uppercase;
+      pointer-events: none; z-index: 10;
+    }
+    .hud-center .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #34d399; animation: pulse 2s infinite;
+    }
+    .hud-center b { color: #34d399; font-weight: 600; }
+
+    .transition-flash {
+      position: fixed; inset: 0; z-index: 5;
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .transition-flash.fire { animation: flash 1.2s ease-out forwards; }
+    @keyframes flash { 0%{opacity:0.6} 100%{opacity:0} }
+  </style>
+</head>
+<body>
+  <canvas id="world"></canvas>
+
+  <div class="hud">
+    <div class="hud-left">
+      <div class="hud-tag season"><span class="dot"></span><span id="hudSeason">Printemps</span></div>
+      <div class="hud-tag alter" id="hudAlterTag" style="display:none"><span class="dot"></span><span id="hudAlter">—</span></div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-tag" id="hudIntensity">Intensite: 50%</div>
+      <div class="hud-tag chaos" id="hudChaos" style="display:none"><span class="dot"></span>CHAOS</div>
+    </div>
+  </div>
+
+  <div class="hud-center">
+    <span class="live-dot"></span>
+    <span><b id="hudCount">0</b> connectes — environnement en direct</span>
+  </div>
+
+  <div class="transition-flash" id="transFlash"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  (function() {
+    'use strict';
+
+    // ─── STATE ───
+    const env = {
+      season: 'printemps',
+      targetSeason: 'printemps',
+      alter: null,
+      chaos: false,
+      intensity: 50,
+      transitionProgress: 1,
+    };
+
+    // ─── SEASON PALETTES ───
+    const PALETTES = {
+      printemps: {
+        sky:        [0.04, 0.08, 0.18],
+        skyHorizon: [0.15, 0.25, 0.35],
+        ground:     [0.06, 0.18, 0.08],
+        groundFar:  [0.04, 0.12, 0.06],
+        particles:  [[0.52, 0.94, 0.67], [1.0, 0.75, 0.85], [0.65, 0.85, 1.0], [1.0, 1.0, 0.7]],
+        fog:        [0.08, 0.15, 0.12],
+        treeColor:  [0.2, 0.6, 0.3],
+        treeTrunk:  [0.3, 0.18, 0.1],
+        moonColor:  [0.9, 0.95, 0.7],
+        starBright: 0.3,
+        particleSpeed: 0.4,
+        particleSize: 3,
+        particleCount: 120,
+        windStrength: 0.3,
+      },
+      ete: {
+        sky:        [0.02, 0.03, 0.12],
+        skyHorizon: [0.35, 0.15, 0.05],
+        ground:     [0.12, 0.18, 0.04],
+        groundFar:  [0.08, 0.12, 0.03],
+        particles:  [[1.0, 0.88, 0.28], [1.0, 0.6, 0.2], [1.0, 0.95, 0.5], [0.9, 0.5, 0.1]],
+        fog:        [0.18, 0.12, 0.06],
+        treeColor:  [0.15, 0.5, 0.12],
+        treeTrunk:  [0.35, 0.2, 0.1],
+        moonColor:  [1.0, 0.85, 0.4],
+        starBright: 0.15,
+        particleSpeed: 0.2,
+        particleSize: 2,
+        particleCount: 60,
+        windStrength: 0.15,
+      },
+      automne: {
+        sky:        [0.06, 0.03, 0.08],
+        skyHorizon: [0.25, 0.1, 0.05],
+        ground:     [0.15, 0.08, 0.03],
+        groundFar:  [0.1, 0.05, 0.02],
+        particles:  [[0.98, 0.57, 0.24], [0.9, 0.3, 0.1], [0.95, 0.8, 0.2], [0.7, 0.2, 0.1]],
+        fog:        [0.15, 0.08, 0.05],
+        treeColor:  [0.6, 0.25, 0.08],
+        treeTrunk:  [0.25, 0.15, 0.08],
+        moonColor:  [1.0, 0.7, 0.4],
+        starBright: 0.5,
+        particleSpeed: 0.8,
+        particleSize: 4,
+        particleCount: 180,
+        windStrength: 0.7,
+      },
+      hiver: {
+        sky:        [0.02, 0.04, 0.1],
+        skyHorizon: [0.08, 0.12, 0.22],
+        ground:     [0.2, 0.22, 0.28],
+        groundFar:  [0.15, 0.17, 0.22],
+        particles:  [[0.9, 0.93, 1.0], [0.7, 0.8, 1.0], [1.0, 1.0, 1.0], [0.8, 0.85, 0.95]],
+        fog:        [0.1, 0.12, 0.18],
+        treeColor:  [0.35, 0.38, 0.45],
+        treeTrunk:  [0.2, 0.15, 0.12],
+        moonColor:  [0.7, 0.8, 1.0],
+        starBright: 0.8,
+        particleSpeed: 0.3,
+        particleSize: 3,
+        particleCount: 200,
+        windStrength: 0.5,
+      },
+    };
+
+    // ─── CANVAS SETUP ───
+    const canvas = document.getElementById('world');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize() {
+      W = canvas.width = window.innerWidth * devicePixelRatio;
+      H = canvas.height = window.innerHeight * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      generateTerrain();
+      generateTrees();
+    }
+    window.addEventListener('resize', resize);
+
+    // ─── STARS ───
+    const stars = [];
+    for (let i = 0; i < 300; i++) {
+      stars.push({
+        x: Math.random(),
+        y: Math.random() * 0.6,
+        size: Math.random() * 1.5 + 0.3,
+        twinkleSpeed: Math.random() * 2 + 1,
+        twinkleOffset: Math.random() * Math.PI * 2,
+        brightness: Math.random() * 0.5 + 0.5,
+      });
+    }
+
+    // ─── TERRAIN ───
+    let terrainPoints = [];
+    let terrainPointsFar = [];
+
+    function generateTerrain() {
+      const w = window.innerWidth;
+      terrainPoints = [];
+      terrainPointsFar = [];
+      const segments = Math.ceil(w / 8);
+
+      for (let i = 0; i <= segments; i++) {
+        const x = (i / segments) * w;
+        const base = window.innerHeight * 0.62;
+        const hill = Math.sin(i * 0.04) * 30 + Math.sin(i * 0.01) * 60 + Math.sin(i * 0.08) * 15;
+        terrainPoints.push({ x, y: base + hill });
+      }
+
+      for (let i = 0; i <= segments; i++) {
+        const x = (i / segments) * w;
+        const base = window.innerHeight * 0.55;
+        const hill = Math.sin(i * 0.025 + 2) * 40 + Math.sin(i * 0.007 + 1) * 70;
+        terrainPointsFar.push({ x, y: base + hill });
+      }
+    }
+
+    // ─── TREES ───
+    let trees = [];
+
+    function generateTrees() {
+      trees = [];
+      const w = window.innerWidth;
+      const count = Math.floor(w / 80);
+      for (let i = 0; i < count; i++) {
+        const x = (i / count) * w + (Math.random() - 0.5) * 60;
+        const tIdx = Math.floor((x / w) * terrainPoints.length);
+        const tp = terrainPoints[Math.min(tIdx, terrainPoints.length - 1)];
+        if (!tp) continue;
+        trees.push({
+          x,
+          y: tp.y,
+          height: 40 + Math.random() * 60,
+          width: 15 + Math.random() * 20,
+          sway: Math.random() * Math.PI * 2,
+          swaySpeed: 0.5 + Math.random() * 0.5,
+          type: Math.random() > 0.3 ? 'round' : 'triangle',
+          depth: 0.5 + Math.random() * 0.5,
+        });
+      }
+      trees.sort((a, b) => a.depth - b.depth);
+    }
+
+    // ─── PARTICLES ───
+    const MAX_PARTICLES = 300;
+    const particles = [];
+
+    function spawnParticle(pal) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const colorArr = pal.particles[Math.floor(Math.random() * pal.particles.length)];
+
+      return {
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * pal.windStrength,
+        vy: -pal.particleSpeed * (0.3 + Math.random() * 0.7),
+        size: pal.particleSize * (0.5 + Math.random()),
+        color: colorArr,
+        alpha: Math.random() * 0.6 + 0.3,
+        life: 1,
+        decay: 0.001 + Math.random() * 0.003,
+        wobbleAmp: Math.random() * 2,
+        wobbleSpeed: 1 + Math.random() * 2,
+        wobbleOffset: Math.random() * Math.PI * 2,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.05,
+      };
+    }
+
+    // ─── INTERPOLATION HELPERS ───
+    function lerpColor(a, b, t) {
+      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function toCSS(c, a) {
+      return `rgba(${Math.round(c[0]*255)},${Math.round(c[1]*255)},${Math.round(c[2]*255)},${a !== undefined ? a : 1})`;
+    }
+
+    function getCurrentPalette() {
+      if (env.transitionProgress >= 1) return PALETTES[env.season];
+
+      const from = PALETTES[env.season];
+      const to = PALETTES[env.targetSeason];
+      const t = env.transitionProgress;
+      const result = {};
+
+      for (const key of Object.keys(from)) {
+        if (Array.isArray(from[key]) && Array.isArray(from[key][0])) {
+          result[key] = from[key].map((c, i) => lerpColor(c, to[key][i] || c, t));
+        } else if (Array.isArray(from[key])) {
+          result[key] = lerpColor(from[key], to[key], t);
+        } else {
+          result[key] = lerp(from[key], to[key], t);
+        }
+      }
+      return result;
+    }
+
+    // ─── ALTERATION EFFECTS ───
+    let alterTime = 0;
+
+    function applyAlterPre(pal) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const str = env.intensity / 100;
+
+      if (env.alter === 'gravite') {
+        const offset = Math.sin(alterTime * 0.8) * 20 * str;
+        ctx.translate(0, offset);
+      }
+      if (env.alter === 'perception') {
+        const angle = Math.sin(alterTime * 0.3) * 0.03 * str;
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate(angle);
+        ctx.translate(-w / 2, -h / 2);
+        const sc = 1 + Math.sin(alterTime * 0.5) * 0.02 * str;
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(sc, sc);
+        ctx.translate(-w / 2, -h / 2);
+      }
+    }
+
+    function applyAlterPost(pal) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const str = env.intensity / 100;
+
+      if (env.alter === 'temps') {
+        const bands = 6;
+        for (let i = 0; i < bands; i++) {
+          const y = ((alterTime * 0.1 + i / bands) % 1) * h;
+          ctx.fillStyle = `rgba(250,204,21,${0.03 * str})`;
+          ctx.fillRect(0, y, w, 2);
+        }
+      }
+
+      if (env.alter === 'matiere') {
+        const blockSize = 30;
+        const glitchCount = Math.floor(8 * str);
+        for (let i = 0; i < glitchCount; i++) {
+          const gx = Math.random() * w;
+          const gy = Math.random() * h;
+          const gw = 20 + Math.random() * 80;
+          const gh = 2 + Math.random() * blockSize * str;
+          ctx.save();
+          ctx.globalAlpha = 0.15 * str;
+          ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 50%)`;
+          ctx.fillRect(gx, gy, gw, gh);
+          ctx.restore();
+        }
+      }
+
+      if (env.alter === 'perception') {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w * 0.5);
+        const hue = (alterTime * 30) % 360;
+        grad.addColorStop(0, `hsla(${hue}, 80%, 50%, ${0.04 * str})`);
+        grad.addColorStop(0.5, `hsla(${hue + 120}, 80%, 50%, ${0.02 * str})`);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+      }
+    }
+
+    // ─── CHAOS EFFECT ───
+    let chaosIntensity = 0;
+
+    function applyChaos() {
+      if (!env.chaos && chaosIntensity <= 0) return;
+
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const str = chaosIntensity;
+
+      // Screen tear
+      const tears = Math.floor(5 * str);
+      for (let i = 0; i < tears; i++) {
+        const y = Math.random() * h;
+        const sliceH = 1 + Math.random() * 8 * str;
+        const shift = (Math.random() - 0.5) * 40 * str;
+        try {
+          const imgData = ctx.getImageData(0, Math.floor(y), w, Math.floor(sliceH));
+          ctx.putImageData(imgData, Math.floor(shift), Math.floor(y));
+        } catch(e) {}
+      }
+
+      // Red/glitch overlay
+      ctx.save();
+      ctx.globalAlpha = 0.08 * str;
+      ctx.fillStyle = '#fb7185';
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+
+      // Scan lines
+      ctx.save();
+      ctx.globalAlpha = 0.1 * str;
+      for (let y = 0; y < h; y += 3) {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(0, y, w, 1);
+      }
+      ctx.restore();
+
+      // RGB split
+      if (str > 0.3) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.1 * str;
+        try {
+          const offset = Math.floor(4 * str);
+          ctx.drawImage(canvas, offset, 0);
+          ctx.globalAlpha = 0.08 * str;
+          ctx.drawImage(canvas, -offset, 0);
+        } catch(e) {}
+        ctx.restore();
+      }
+    }
+
+    // ─── MOON ───
+    function drawMoon(pal) {
+      const w = window.innerWidth;
+      const mx = w * 0.78;
+      const my = window.innerHeight * 0.15;
+      const radius = 40;
+
+      ctx.save();
+      // Glow
+      const glow = ctx.createRadialGradient(mx, my, radius * 0.5, mx, my, radius * 4);
+      glow.addColorStop(0, toCSS(pal.moonColor, 0.15));
+      glow.addColorStop(0.5, toCSS(pal.moonColor, 0.04));
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.fillRect(mx - radius * 4, my - radius * 4, radius * 8, radius * 8);
+
+      // Body
+      ctx.beginPath();
+      ctx.arc(mx, my, radius, 0, Math.PI * 2);
+      ctx.fillStyle = toCSS(pal.moonColor, 0.9);
+      ctx.fill();
+
+      // Crescent shadow
+      ctx.beginPath();
+      ctx.arc(mx + radius * 0.35, my - radius * 0.1, radius * 0.85, 0, Math.PI * 2);
+      ctx.fillStyle = toCSS(pal.sky, 0.85);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ─── DRAW SKY ───
+    function drawSky(pal) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      const grad = ctx.createLinearGradient(0, 0, 0, h * 0.65);
+      grad.addColorStop(0, toCSS(pal.sky));
+      grad.addColorStop(1, toCSS(pal.skyHorizon));
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // ─── DRAW STARS ───
+    function drawStars(pal, time) {
+      const w = window.innerWidth;
+      const bright = pal.starBright;
+      if (bright < 0.05) return;
+
+      for (const s of stars) {
+        const twinkle = 0.5 + 0.5 * Math.sin(time * s.twinkleSpeed + s.twinkleOffset);
+        const alpha = s.brightness * twinkle * bright;
+        if (alpha < 0.02) continue;
+
+        ctx.beginPath();
+        ctx.arc(s.x * w, s.y * window.innerHeight, s.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(220,230,255,${alpha})`;
+        ctx.fill();
+      }
+    }
+
+    // ─── DRAW TERRAIN ───
+    function drawTerrainLayer(points, color, fogColor, fogAmount) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      for (const p of points) ctx.lineTo(p.x, p.y);
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fillStyle = toCSS(color);
+      ctx.fill();
+
+      // Fog overlay
+      if (fogAmount > 0) {
+        const fogGrad = ctx.createLinearGradient(0, points[0].y - 40, 0, points[0].y + 60);
+        fogGrad.addColorStop(0, toCSS(fogColor, fogAmount));
+        fogGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = fogGrad;
+        ctx.fillRect(0, points[0].y - 40, w, 100);
+      }
+    }
+
+    // ─── DRAW TREES ───
+    function drawTrees(pal, time) {
+      for (const tree of trees) {
+        const sway = Math.sin(time * tree.swaySpeed + tree.sway) * 3 * pal.windStrength;
+        const depthAlpha = 0.4 + tree.depth * 0.6;
+
+        ctx.save();
+        ctx.globalAlpha = depthAlpha;
+        ctx.translate(tree.x, tree.y);
+
+        // Trunk
+        const trunkW = tree.width * 0.15;
+        ctx.fillStyle = toCSS(pal.treeTrunk);
+        ctx.fillRect(-trunkW / 2, -tree.height * 0.4, trunkW, tree.height * 0.4);
+
+        // Canopy
+        ctx.translate(sway, 0);
+        if (tree.type === 'round') {
+          ctx.beginPath();
+          ctx.ellipse(0, -tree.height * 0.55, tree.width * 0.5, tree.height * 0.5, 0, 0, Math.PI * 2);
+          ctx.fillStyle = toCSS(pal.treeColor, 0.85);
+          ctx.fill();
+
+          // Highlight
+          ctx.beginPath();
+          ctx.ellipse(-tree.width * 0.1, -tree.height * 0.65, tree.width * 0.25, tree.height * 0.25, 0, 0, Math.PI * 2);
+          ctx.fillStyle = toCSS(pal.treeColor, 0.3);
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(0, -tree.height);
+          ctx.lineTo(-tree.width * 0.5, -tree.height * 0.2);
+          ctx.lineTo(tree.width * 0.5, -tree.height * 0.2);
+          ctx.closePath();
+          ctx.fillStyle = toCSS(pal.treeColor, 0.85);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // ─── DRAW PARTICLES ───
+    function drawParticles(pal, time, dt) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const targetCount = Math.floor(pal.particleCount);
+
+      while (particles.length < targetCount) {
+        particles.push(spawnParticle(pal));
+      }
+      while (particles.length > targetCount) {
+        particles.pop();
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+
+        // Gravity alteration: particles float up
+        let gravMod = 1;
+        if (env.alter === 'gravite') {
+          gravMod = -1;
+        }
+
+        // Time alteration: slow motion
+        let timeMod = 1;
+        if (env.alter === 'temps') {
+          timeMod = 0.2 + (1 - env.intensity / 100) * 0.8;
+        }
+
+        const wobble = Math.sin(time * p.wobbleSpeed + p.wobbleOffset) * p.wobbleAmp;
+        p.x += (p.vx + wobble) * timeMod * 60 * dt;
+        p.y += p.vy * gravMod * timeMod * 60 * dt;
+        p.rotation += p.rotSpeed * timeMod;
+        p.life -= p.decay * timeMod * 60 * dt;
+
+        if (p.life <= 0 || p.y < -20 || p.y > h + 20 || p.x < -20 || p.x > w + 20) {
+          particles[i] = spawnParticle(pal);
+          particles[i].y = gravMod > 0 ? h + 10 : -10;
+          continue;
+        }
+
+        const alpha = p.alpha * Math.min(1, p.life * 3);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        ctx.globalAlpha = alpha;
+
+        if (env.season === 'hiver') {
+          // Snowflake
+          ctx.fillStyle = toCSS(p.color);
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          // Glow
+          ctx.globalAlpha = alpha * 0.3;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size * 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (env.season === 'automne') {
+          // Leaf shape
+          ctx.fillStyle = toCSS(p.color);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, p.size * 1.5, p.size * 0.6, p.rotation, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (env.season === 'printemps') {
+          // Petal
+          ctx.fillStyle = toCSS(p.color);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, p.size, p.size * 0.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = alpha * 0.4;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size * 2, 0, Math.PI * 2);
+          ctx.fillStyle = toCSS(p.color);
+          ctx.fill();
+        } else {
+          // Firefly for summer
+          ctx.fillStyle = toCSS(p.color);
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = alpha * 0.3;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size * 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // ─── DRAW WATER ───
+    function drawWater(pal, time) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const waterY = h * 0.85;
+      const waterH = h - waterY;
+
+      // Water body
+      const grad = ctx.createLinearGradient(0, waterY, 0, h);
+      grad.addColorStop(0, toCSS(pal.skyHorizon, 0.3));
+      grad.addColorStop(1, toCSS(pal.sky, 0.5));
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, waterY, w, waterH);
+
+      // Waves
+      ctx.save();
+      ctx.globalAlpha = 0.15;
+      for (let wave = 0; wave < 3; wave++) {
+        ctx.beginPath();
+        const waveY = waterY + wave * 12 + 5;
+        ctx.moveTo(0, waveY);
+        for (let x = 0; x <= w; x += 4) {
+          const y = waveY + Math.sin(x * 0.01 + time * (0.8 + wave * 0.3) + wave) * (3 + wave * 2);
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+        ctx.fillStyle = toCSS(pal.moonColor, 0.08);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Moon reflection
+      const mx = w * 0.78;
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      for (let i = 0; i < 8; i++) {
+        const ry = waterY + 10 + i * 8;
+        const rw = 3 + Math.sin(time + i) * 2;
+        const rx = mx + Math.sin(time * 0.5 + i * 0.5) * 5;
+        ctx.fillStyle = toCSS(pal.moonColor, 0.5);
+        ctx.fillRect(rx - 15, ry, 30, rw);
+      }
+      ctx.restore();
+    }
+
+    // ─── MAIN DRAW ───
+    let prevTime = 0;
+    let globalTime = 0;
+
+    function draw(timestamp) {
+      const dt = Math.min((timestamp - prevTime) / 1000, 0.05);
+      prevTime = timestamp;
+      globalTime += dt;
+      alterTime += dt;
+
+      // Transition between seasons
+      if (env.transitionProgress < 1) {
+        env.transitionProgress = Math.min(1, env.transitionProgress + dt * 0.4);
+        if (env.transitionProgress >= 1) {
+          env.season = env.targetSeason;
+        }
+      }
+
+      // Chaos intensity smoothing
+      const chaosTarget = env.chaos ? 1 : 0;
+      chaosIntensity += (chaosTarget - chaosIntensity) * dt * 2;
+
+      const pal = getCurrentPalette();
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      ctx.save();
+      applyAlterPre(pal);
+
+      drawSky(pal);
+      drawStars(pal, globalTime);
+      drawMoon(pal);
+
+      // Far terrain
+      drawTerrainLayer(terrainPointsFar, pal.groundFar, pal.fog, 0.25);
+
+      // Trees behind near terrain
+      drawTrees(pal, globalTime);
+
+      // Near terrain
+      drawTerrainLayer(terrainPoints, pal.ground, pal.fog, 0.15);
+
+      // Water
+      drawWater(pal, globalTime);
+
+      // Particles
+      drawParticles(pal, globalTime, dt);
+
+      // Alteration post effects
+      applyAlterPost(pal);
+
+      ctx.restore();
+
+      // Chaos on top of everything
+      applyChaos();
+
+      // Vignette
+      const vignette = ctx.createRadialGradient(w/2, h/2, w*0.25, w/2, h/2, w*0.75);
+      vignette.addColorStop(0, 'transparent');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.4)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, w, h);
+
+      requestAnimationFrame(draw);
+    }
+
+    // ─── HUD UPDATE ───
+    const SEASON_NAMES = { printemps: 'Printemps', ete: 'Ete', automne: 'Automne', hiver: 'Hiver' };
+    const ALTER_NAMES = { gravite: 'Gravite', temps: 'Temps', matiere: 'Matiere', perception: 'Perception' };
+
+    function updateHUD() {
+      document.getElementById('hudSeason').textContent = SEASON_NAMES[env.targetSeason] || env.targetSeason;
+      document.getElementById('hudIntensity').textContent = 'Intensite: ' + env.intensity + '%';
+
+      const alterTag = document.getElementById('hudAlterTag');
+      if (env.alter) {
+        alterTag.style.display = '';
+        document.getElementById('hudAlter').textContent = ALTER_NAMES[env.alter] || env.alter;
+      } else {
+        alterTag.style.display = 'none';
+      }
+
+      const chaosTag = document.getElementById('hudChaos');
+      chaosTag.style.display = env.chaos ? '' : 'none';
+    }
+
+    function flash() {
+      const el = document.getElementById('transFlash');
+      const pal = PALETTES[env.targetSeason];
+      el.style.background = `radial-gradient(circle, ${toCSS(pal.moonColor, 0.4)}, transparent 70%)`;
+      el.classList.remove('fire');
+      void el.offsetWidth;
+      el.classList.add('fire');
+    }
+
+    // ─── SOCKET ───
+    const socket = io({ reconnection: true, reconnectionDelay: 1000 });
+
+    socket.on('connect', () => {
+      console.log('[ENV] Connected');
+    });
+
+    socket.on('spectators:count', n => {
+      document.getElementById('hudCount').textContent = n;
+    });
+
+    socket.on('state:sync', st => {
+      env.season = st.season;
+      env.targetSeason = st.season;
+      env.alter = st.alter;
+      env.chaos = st.chaos;
+      env.intensity = st.intensity;
+      env.transitionProgress = 1;
+      updateHUD();
+    });
+
+    socket.on('state:update', st => {
+      if (st.season !== env.season) {
+        env.targetSeason = st.season;
+        env.transitionProgress = 0;
+        flash();
+      }
+      env.alter = st.alter;
+      env.chaos = st.chaos;
+      env.intensity = st.intensity;
+      updateHUD();
+    });
+
+    socket.on('intensity:live', avg => {
+      env.intensity = avg;
+      document.getElementById('hudIntensity').textContent = 'Intensite: ' + avg + '%';
+    });
+
+    // ─── INIT ───
+    resize();
+    requestAnimationFrame(draw);
+    updateHUD();
+
+  })();
+  </script>
+</body>
+</html>
