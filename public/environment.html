@@ -307,23 +307,45 @@
 
     // ─── ALTERATION EFFECTS ───
     let alterTime = 0;
+    let alterSmooth = 0;
+    let gravFloat = 0;
+    let tempsSlowdown = 0;
+    let matiereGlitch = 0;
+    let perceptionWarp = 0;
+
+    function updateAlterSmoothing(dt) {
+      const spd = dt * 3;
+      gravFloat += ((env.alter === 'gravite' ? 1 : 0) - gravFloat) * spd;
+      tempsSlowdown += ((env.alter === 'temps' ? 1 : 0) - tempsSlowdown) * spd;
+      matiereGlitch += ((env.alter === 'matiere' ? 1 : 0) - matiereGlitch) * spd;
+      perceptionWarp += ((env.alter === 'perception' ? 1 : 0) - perceptionWarp) * spd;
+    }
 
     function applyAlterPre(pal) {
       const w = window.innerWidth;
       const h = window.innerHeight;
       const str = env.intensity / 100;
 
-      if (env.alter === 'gravite') {
-        const offset = Math.sin(alterTime * 0.8) * 20 * str;
-        ctx.translate(0, offset);
-      }
-      if (env.alter === 'perception') {
-        const angle = Math.sin(alterTime * 0.3) * 0.03 * str;
+      // ── GRAVITE: scene floats, bobbing motion ──
+      if (gravFloat > 0.01) {
+        const g = gravFloat * str;
+        const bob = Math.sin(alterTime * 0.6) * 35 * g + Math.sin(alterTime * 1.1) * 15 * g;
+        ctx.translate(0, bob);
+        const tilt = Math.sin(alterTime * 0.3) * 0.008 * g;
         ctx.translate(w / 2, h / 2);
-        ctx.rotate(angle);
+        ctx.rotate(tilt);
         ctx.translate(-w / 2, -h / 2);
-        const sc = 1 + Math.sin(alterTime * 0.5) * 0.02 * str;
-        ctx.translate(w / 2, h / 2);
+      }
+
+      // ── PERCEPTION: rotation + zoom breathing + distortion ──
+      if (perceptionWarp > 0.01) {
+        const p = perceptionWarp * str;
+        const angle = Math.sin(alterTime * 0.25) * 0.05 * p + Math.sin(alterTime * 0.7) * 0.02 * p;
+        const sc = 1 + Math.sin(alterTime * 0.4) * 0.04 * p;
+        const shiftX = Math.sin(alterTime * 0.5) * 15 * p;
+        const shiftY = Math.cos(alterTime * 0.35) * 10 * p;
+        ctx.translate(w / 2 + shiftX, h / 2 + shiftY);
+        ctx.rotate(angle);
         ctx.scale(sc, sc);
         ctx.translate(-w / 2, -h / 2);
       }
@@ -334,40 +356,219 @@
       const h = window.innerHeight;
       const str = env.intensity / 100;
 
-      if (env.alter === 'temps') {
-        const bands = 6;
-        for (let i = 0; i < bands; i++) {
-          const y = ((alterTime * 0.1 + i / bands) % 1) * h;
-          ctx.fillStyle = `rgba(250,204,21,${0.03 * str})`;
-          ctx.fillRect(0, y, w, 2);
+      // ── GRAVITE: blue anti-gravity aura + floating debris ──
+      if (gravFloat > 0.01) {
+        const g = gravFloat * str;
+        ctx.save();
+        // Bottom blue glow
+        const bglow = ctx.createLinearGradient(0, h, 0, h * 0.5);
+        bglow.addColorStop(0, `rgba(56,189,248,${0.2 * g})`);
+        bglow.addColorStop(0.3, `rgba(56,189,248,${0.06 * g})`);
+        bglow.addColorStop(1, 'transparent');
+        ctx.fillStyle = bglow;
+        ctx.fillRect(0, 0, w, h);
+        // Top pull glow
+        const tglow = ctx.createLinearGradient(0, 0, 0, h * 0.3);
+        tglow.addColorStop(0, `rgba(100,180,255,${0.08 * g})`);
+        tglow.addColorStop(1, 'transparent');
+        ctx.fillStyle = tglow;
+        ctx.fillRect(0, 0, w, h * 0.3);
+        // Floating energy lines rising from ground
+        ctx.globalCompositeOperation = 'screen';
+        for (let i = 0; i < 12; i++) {
+          const lx = (i / 12) * w + Math.sin(alterTime * 0.5 + i * 2) * 40;
+          const ly = h - ((alterTime * 60 + i * 90) % (h * 1.2));
+          const lh = 30 + Math.sin(i * 3) * 20;
+          const lg = ctx.createLinearGradient(lx, ly + lh, lx, ly);
+          lg.addColorStop(0, 'transparent');
+          lg.addColorStop(0.5, `rgba(100,200,255,${0.15 * g})`);
+          lg.addColorStop(1, 'transparent');
+          ctx.fillStyle = lg;
+          ctx.fillRect(lx - 1, ly, 2, lh);
         }
-      }
-
-      if (env.alter === 'matiere') {
-        const blockSize = 30;
-        const glitchCount = Math.floor(8 * str);
-        for (let i = 0; i < glitchCount; i++) {
-          const gx = Math.random() * w;
-          const gy = Math.random() * h;
-          const gw = 20 + Math.random() * 80;
-          const gh = 2 + Math.random() * blockSize * str;
+        // Floating rock debris
+        for (let i = 0; i < 8; i++) {
+          const dx = ((alterTime * 15 + i * 170) % (w + 100)) - 50;
+          const dy = h * 0.6 - ((alterTime * 20 + i * 80) % (h * 0.5));
+          const ds = 3 + i % 4;
+          const da = 0.3 * g * (0.5 + 0.5 * Math.sin(alterTime + i));
+          ctx.globalAlpha = da;
+          ctx.fillStyle = toCSS(pal.ground);
           ctx.save();
-          ctx.globalAlpha = 0.15 * str;
-          ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 50%)`;
-          ctx.fillRect(gx, gy, gw, gh);
+          ctx.translate(dx, dy);
+          ctx.rotate(alterTime * 0.5 + i);
+          ctx.fillRect(-ds, -ds, ds * 2, ds * 2);
           ctx.restore();
         }
+        ctx.restore();
       }
 
-      if (env.alter === 'perception') {
+      // ── TEMPS: golden ripples, clock waves, afterimage tint ──
+      if (tempsSlowdown > 0.01) {
+        const t = tempsSlowdown * str;
         ctx.save();
+        // Golden tint overlay
+        ctx.globalAlpha = 0.07 * t;
+        ctx.fillStyle = 'rgba(250, 200, 50, 1)';
+        ctx.fillRect(0, 0, w, h);
+        // Sweeping time bands
         ctx.globalCompositeOperation = 'screen';
-        const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w * 0.5);
-        const hue = (alterTime * 30) % 360;
-        grad.addColorStop(0, `hsla(${hue}, 80%, 50%, ${0.04 * str})`);
-        grad.addColorStop(0.5, `hsla(${hue + 120}, 80%, 50%, ${0.02 * str})`);
-        grad.addColorStop(1, 'transparent');
-        ctx.fillStyle = grad;
+        ctx.globalAlpha = 1;
+        for (let i = 0; i < 10; i++) {
+          const y = ((alterTime * 0.06 + i / 10) % 1) * h;
+          const bandG = ctx.createLinearGradient(0, y - 20, 0, y + 20);
+          bandG.addColorStop(0, 'transparent');
+          bandG.addColorStop(0.4, `rgba(255,210,60,${0.04 * t})`);
+          bandG.addColorStop(0.5, `rgba(255,230,100,${0.08 * t})`);
+          bandG.addColorStop(0.6, `rgba(255,210,60,${0.04 * t})`);
+          bandG.addColorStop(1, 'transparent');
+          ctx.fillStyle = bandG;
+          ctx.fillRect(0, y - 20, w, 40);
+        }
+        // Concentric clock rings emanating from center
+        const cx = w * 0.5, cy = h * 0.4;
+        for (let r = 0; r < 5; r++) {
+          const radius = ((alterTime * 40 + r * 80) % 400) * t;
+          const ra = Math.max(0, 1 - radius / 400) * 0.12 * t;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255,215,80,${ra})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        // Clock hands
+        ctx.globalAlpha = 0.1 * t;
+        ctx.strokeStyle = 'rgba(255,220,100,0.6)';
+        ctx.lineWidth = 1.5;
+        const handAngle1 = alterTime * 0.1;
+        const handAngle2 = alterTime * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(handAngle1) * 60 * t, cy + Math.sin(handAngle1) * 60 * t);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(handAngle2) * 40 * t, cy + Math.sin(handAngle2) * 40 * t);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // ── MATIERE: dissolution, pixel rain, glitch blocks ──
+      if (matiereGlitch > 0.01) {
+        const m = matiereGlitch * str;
+        ctx.save();
+        // Glitch blocks - horizontal slice displacement
+        const slices = Math.floor(15 * m);
+        for (let i = 0; i < slices; i++) {
+          const sy = Math.random() * h;
+          const sh = 2 + Math.random() * 12 * m;
+          const sx = (Math.random() - 0.5) * 60 * m;
+          try {
+            const d = ctx.getImageData(0, sy | 0, w, Math.max(1, sh | 0));
+            ctx.putImageData(d, sx | 0, sy | 0);
+          } catch(e) {}
+        }
+        // Dissolving pixel rain
+        for (let i = 0; i < Math.floor(40 * m); i++) {
+          const px = Math.random() * w;
+          const py = ((alterTime * 100 + i * 37) % (h + 20)) - 10;
+          const ps = 2 + Math.random() * 5 * m;
+          const hue = Math.random() > 0.5 ? 270 + Math.random() * 40 : Math.random() * 360;
+          ctx.globalAlpha = 0.3 * m * (0.5 + 0.5 * Math.sin(alterTime * 2 + i));
+          ctx.fillStyle = `hsl(${hue}, 80%, 55%)`;
+          ctx.fillRect(px, py, ps, ps);
+        }
+        // Fragmenting rectangles
+        ctx.globalCompositeOperation = 'screen';
+        for (let i = 0; i < Math.floor(10 * m); i++) {
+          const fx = Math.random() * w;
+          const fy = Math.random() * h;
+          const fw = 15 + Math.random() * 100 * m;
+          const fh = 1 + Math.random() * 8 * m;
+          ctx.globalAlpha = 0.12 * m;
+          ctx.fillStyle = `hsl(${Math.random() * 60 + 260}, 90%, 60%)`;
+          ctx.fillRect(fx, fy, fw, fh);
+        }
+        // Edge dissolve effect - purple bleeding from edges
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.12 * m;
+        const edgeL = ctx.createLinearGradient(0, 0, w * 0.15, 0);
+        edgeL.addColorStop(0, 'rgba(168,85,247,1)');
+        edgeL.addColorStop(1, 'transparent');
+        ctx.fillStyle = edgeL;
+        ctx.fillRect(0, 0, w * 0.15, h);
+        const edgeR = ctx.createLinearGradient(w, 0, w * 0.85, 0);
+        edgeR.addColorStop(0, 'rgba(168,85,247,1)');
+        edgeR.addColorStop(1, 'transparent');
+        ctx.fillStyle = edgeR;
+        ctx.fillRect(w * 0.85, 0, w * 0.15, h);
+        // Digital noise overlay
+        ctx.globalAlpha = 0.06 * m;
+        for (let i = 0; i < Math.floor(60 * m); i++) {
+          const nx = Math.random() * w;
+          const ny = Math.random() * h;
+          ctx.fillStyle = Math.random() > 0.5 ? '#a855f7' : '#f0abfc';
+          ctx.fillRect(nx, ny, 1, 1);
+        }
+        ctx.restore();
+      }
+
+      // ── PERCEPTION: chromatic aberration, hue shift, kaleidoscope pulse ──
+      if (perceptionWarp > 0.01) {
+        const p = perceptionWarp * str;
+        ctx.save();
+        // Chromatic aberration (RGB split)
+        ctx.globalCompositeOperation = 'screen';
+        const offset = Math.floor(6 * p);
+        if (offset > 0) {
+          try {
+            ctx.globalAlpha = 0.08 * p;
+            ctx.drawImage(canvas, offset, 0);
+            ctx.globalAlpha = 0.06 * p;
+            ctx.drawImage(canvas, -offset, 0);
+            ctx.globalAlpha = 0.04 * p;
+            ctx.drawImage(canvas, 0, offset);
+          } catch(e) {}
+        }
+        // Rainbow radial pulse
+        ctx.globalCompositeOperation = 'screen';
+        const hue = (alterTime * 50) % 360;
+        const pulseR = (200 + Math.sin(alterTime * 0.8) * 150) * p;
+        const rg = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, pulseR);
+        rg.addColorStop(0, `hsla(${hue}, 90%, 55%, ${0.08 * p})`);
+        rg.addColorStop(0.3, `hsla(${hue + 60}, 85%, 50%, ${0.05 * p})`);
+        rg.addColorStop(0.6, `hsla(${hue + 180}, 80%, 50%, ${0.03 * p})`);
+        rg.addColorStop(1, 'transparent');
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+        // Pulsing concentric circles (sonar waves)
+        ctx.globalCompositeOperation = 'screen';
+        for (let i = 0; i < 4; i++) {
+          const sr = ((alterTime * 80 + i * 100) % (w * 0.6)) * p;
+          const sa = Math.max(0, 1 - sr / (w * 0.6)) * 0.06 * p;
+          ctx.beginPath();
+          ctx.arc(w / 2, h / 2, sr, 0, Math.PI * 2);
+          ctx.strokeStyle = `hsla(${hue + i * 90}, 80%, 60%, ${sa})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        // Edge prism effect
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.08 * p;
+        const prismL = ctx.createLinearGradient(0, 0, w * 0.1, 0);
+        prismL.addColorStop(0, `hsla(${hue}, 100%, 50%, 1)`);
+        prismL.addColorStop(1, 'transparent');
+        ctx.fillStyle = prismL;
+        ctx.fillRect(0, 0, w * 0.1, h);
+        const prismR = ctx.createLinearGradient(w, 0, w * 0.9, 0);
+        prismR.addColorStop(0, `hsla(${hue + 180}, 100%, 50%, 1)`);
+        prismR.addColorStop(1, 'transparent');
+        ctx.fillStyle = prismR;
+        ctx.fillRect(w * 0.9, 0, w * 0.1, h);
+        // Full-screen hue tint that cycles
+        ctx.globalCompositeOperation = 'color';
+        ctx.globalAlpha = 0.04 * p;
+        ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
         ctx.fillRect(0, 0, w, h);
         ctx.restore();
       }
@@ -512,12 +713,19 @@
     // ─── DRAW TREES ───
     function drawTrees(pal, time) {
       for (const tree of trees) {
-        const sway = Math.sin(time * tree.swaySpeed + tree.sway) * 3 * pal.windStrength;
+        const sway = Math.sin(time * tree.swaySpeed * (1 - tempsSlowdown * 0.7) + tree.sway) * 3 * pal.windStrength;
         const depthAlpha = 0.4 + tree.depth * 0.6;
 
         ctx.save();
         ctx.globalAlpha = depthAlpha;
-        ctx.translate(tree.x, tree.y);
+        // Gravity: trees float upward
+        const gLift = gravFloat * (env.intensity / 100) * Math.sin(time * 0.4 + tree.sway) * 20 * tree.depth;
+        ctx.translate(tree.x, tree.y - gLift);
+        // Matiere: flicker/fragment trees
+        if (matiereGlitch > 0.1 && Math.random() < matiereGlitch * 0.15) {
+          ctx.globalAlpha *= 0.3;
+          ctx.translate((Math.random() - 0.5) * 10 * matiereGlitch, 0);
+        }
 
         // Trunk
         const trunkW = tree.width * 0.15;
@@ -567,17 +775,8 @@
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
-        // Gravity alteration: particles float up
-        let gravMod = 1;
-        if (env.alter === 'gravite') {
-          gravMod = -1;
-        }
-
-        // Time alteration: slow motion
-        let timeMod = 1;
-        if (env.alter === 'temps') {
-          timeMod = 0.2 + (1 - env.intensity / 100) * 0.8;
-        }
+        let gravMod = 1 - gravFloat * 2;
+        let timeMod = 1 - tempsSlowdown * (0.7 * (env.intensity / 100));
 
         const wobble = Math.sin(time * p.wobbleSpeed + p.wobbleOffset) * p.wobbleAmp;
         p.x += (p.vx + wobble) * timeMod * 60 * dt;
@@ -645,7 +844,8 @@
     function drawWater(pal, time) {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const waterY = h * 0.85;
+      const waterLift = gravFloat * (env.intensity / 100) * 30;
+      const waterY = h * 0.85 - waterLift;
       const waterH = h - waterY;
 
       // Water body
@@ -663,7 +863,8 @@
         const waveY = waterY + wave * 12 + 5;
         ctx.moveTo(0, waveY);
         for (let x = 0; x <= w; x += 4) {
-          const y = waveY + Math.sin(x * 0.01 + time * (0.8 + wave * 0.3) + wave) * (3 + wave * 2);
+          const waveSpeed = (0.8 + wave * 0.3) * (1 - tempsSlowdown * 0.7);
+          const y = waveY + Math.sin(x * 0.01 + time * waveSpeed + wave) * (3 + wave * 2);
           ctx.lineTo(x, y);
         }
         ctx.lineTo(w, h);
@@ -697,10 +898,11 @@
       prevTime = timestamp;
       globalTime += dt;
       alterTime += dt;
+      updateAlterSmoothing(dt);
 
       // Transition between seasons
       if (env.transitionProgress < 1) {
-        env.transitionProgress = Math.min(1, env.transitionProgress + dt * 0.4);
+        env.transitionProgress = Math.min(1, env.transitionProgress + dt * 0.7);
         if (env.transitionProgress >= 1) {
           env.season = env.targetSeason;
         }
@@ -791,13 +993,23 @@
     // ─── SOCKET ───
     const socket = io({ reconnection: true, reconnectionDelay: 1000 });
 
-    socket.on('connect', () => {
-      console.log('[ENV] Connected');
-    });
+    socket.on('connect', () => console.log('[ENV] Connected'));
 
     socket.on('spectators:count', n => {
       document.getElementById('hudCount').textContent = n;
     });
+
+    function applyState(st) {
+      if (st.season && st.season !== env.targetSeason) {
+        env.targetSeason = st.season;
+        env.transitionProgress = 0;
+        flash();
+      }
+      if (st.alter !== undefined) env.alter = st.alter;
+      if (st.chaos !== undefined) env.chaos = st.chaos;
+      if (st.intensity !== undefined) env.intensity = st.intensity;
+      updateHUD();
+    }
 
     socket.on('state:sync', st => {
       env.season = st.season;
@@ -809,17 +1021,8 @@
       updateHUD();
     });
 
-    socket.on('state:update', st => {
-      if (st.season !== env.season) {
-        env.targetSeason = st.season;
-        env.transitionProgress = 0;
-        flash();
-      }
-      env.alter = st.alter;
-      env.chaos = st.chaos;
-      env.intensity = st.intensity;
-      updateHUD();
-    });
+    socket.on('state:update', st => applyState(st));
+    socket.on('state:preview', st => applyState(st));
 
     socket.on('intensity:live', avg => {
       env.intensity = avg;
