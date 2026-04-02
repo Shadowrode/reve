@@ -1022,7 +1022,6 @@
     });
 
     socket.on('state:update', st => applyState(st));
-    socket.on('state:preview', st => applyState(st));
 
     socket.on('intensity:live', avg => {
       env.intensity = avg;

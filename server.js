@@ -104,10 +104,8 @@ function resolveVotes() {
 
   // Broadcast result + reset tallies
   io.emit('votes:live', { season: {}, alter: {}, chaos: 0 });
-  if (changed) {
-    io.emit('state:update', state);
-    console.log(`\x1b[32m[>>]\x1b[0m Broadcast a ${state.spectators} client(s)`);
-  }
+  io.emit('state:update', state);
+  console.log(`\x1b[32m[>>]\x1b[0m Broadcast a ${state.spectators} client(s)`);
 }
 
 setInterval(resolveVotes, VOTE_INTERVAL_MS);
@@ -135,33 +133,12 @@ io.on('connection', (socket) => {
     });
   }
 
-  function broadcastPreview() {
-    const preview = { ...state };
-    let topS = null, topSC = 0;
-    for (const [s, c] of Object.entries(votes.season)) {
-      if (c > topSC) { topSC = c; topS = s; }
-    }
-    if (topS) preview.season = topS;
-    let topA = null, topAC = 0;
-    for (const [a, c] of Object.entries(votes.alter)) {
-      if (c > topAC) { topAC = c; topA = a; }
-    }
-    if (topA) preview.alter = topA;
-    const totalV = Object.values(votes.season).reduce((a, b) => a + b, 0) + votes.chaos;
-    preview.chaos = votes.chaos > 0 && votes.chaos >= totalV / 2;
-    if (votes.intensity.length > 0) {
-      preview.intensity = Math.round(votes.intensity.reduce((a, b) => a + b, 0) / votes.intensity.length);
-    }
-    io.emit('state:preview', preview);
-  }
-
   // Vote saison
   socket.on('vote:season', (season) => {
     if (!VALID_SEASONS.includes(season)) return;
     votes.season[season] = (votes.season[season] || 0) + 1;
     socket.emit('vote:accepted', { type: 'season', value: season });
     broadcastTallies();
-    broadcastPreview();
     console.log(`\x1b[90m[vote]\x1b[0m ${socket.id} -> saison:${season}`);
   });
 
@@ -172,7 +149,6 @@ io.on('connection', (socket) => {
     votes.alter[alter] = (votes.alter[alter] || 0) + 1;
     socket.emit('vote:accepted', { type: 'alter', value: alter });
     broadcastTallies();
-    broadcastPreview();
     console.log(`\x1b[90m[vote]\x1b[0m ${socket.id} -> alter:${alter}`);
   });
 
@@ -181,7 +157,6 @@ io.on('connection', (socket) => {
     votes.chaos++;
     socket.emit('vote:accepted', { type: 'chaos' });
     broadcastTallies();
-    broadcastPreview();
     console.log(`\x1b[90m[vote]\x1b[0m ${socket.id} -> chaos`);
   });
 
