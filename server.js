@@ -7,14 +7,15 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
-// Autoriser l'iframe Canva (et self)
+// FORCE L'AUTORISATION POUR CANVA
 app.use((req, res, next) => {
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://www.canva.com https://*.canva.com");
-  res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.canva.com');
+  res.setHeader("X-Frame-Options", "ALLOW-FROM https://www.canva.com");
+  res.setHeader("Content-Security-Policy", "frame-ancestors 'self' https://www.canva.com https://*.canva.com");
+  res.removeHeader("X-Frame-Options");
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
 app.get('/env', (req, res) => res.redirect('/environment.html'));
 
