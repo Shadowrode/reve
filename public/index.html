@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>MANIPULATION</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@200;300;400;500;600&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --void: #020510;
+      --deep: #050c1a;
+      --s-h1: 225; --s-h2: 260; --s-h3: 320;
+      --s-accent: hsl(var(--s-h1), 75%, 62%);
+      --s-accent2: hsl(var(--s-h2), 70%, 58%);
+      --s-glow1: hsla(var(--s-h1), 80%, 55%, 0.18);
+      --s-glow2: hsla(var(--s-h2), 75%, 50%, 0.14);
+      --s-glow3: hsla(var(--s-h3), 70%, 55%, 0.10);
+      --card-bg: linear-gradient(145deg,
+        hsla(var(--s-h1), 70%, 18%, 0.65),
+        hsla(var(--s-h2), 60%, 12%, 0.55),
+        hsla(var(--s-h1), 50%, 8%, 0.45));
+      --card-border: hsla(var(--s-h1), 60%, 50%, 0.15);
+      --text: #e8ecff;
+      --text-dim: rgba(200, 210, 255, 0.35);
+      --text-soft: rgba(220, 230, 255, 0.65);
+      --green: #34d399;
+      --serif: 'Cormorant Garamond', 'Georgia', serif;
+      --sans: 'Outfit', system-ui, sans-serif;
+      --mono: 'Space Grotesk', monospace;
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --smooth: cubic-bezier(0.22, 1, 0.36, 1);
+      --radius: 24px;
+    }
+
+    html { height: 100%; overflow: hidden; }
+    body {
+      height: 100%; overflow-y: auto; overflow-x: hidden;
+      font-family: var(--sans);
+      background: var(--void); color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      transition: background 2s var(--ease);
+    }
+
+    /* ══════════ INTRO ══════════ */
+    .intro {
+      position: fixed; inset: 0; z-index: 1000;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--void);
+      transition: opacity 1.2s var(--ease), transform 1.2s var(--ease);
+    }
+    .intro.gone { opacity: 0; transform: scale(1.08); pointer-events: none; }
+
+    .intro-eye { width: 120px; height: 120px; position: relative; margin-bottom: 44px; }
+    .intro-eye span { position: absolute; border-radius: 50%; }
+    .eye-o { inset: 0; border: 1.5px solid rgba(100,140,255,0.2); animation: ePulse 2.5s ease-in-out infinite; }
+    .eye-m { inset: 20px; border: 1px solid rgba(180,120,255,0.25); animation: ePulse 2.5s 0.25s ease-in-out infinite; }
+    .eye-i { inset: 42px; background: radial-gradient(circle, hsl(200,100%,70%), hsl(250,80%,55%) 60%, transparent 80%); animation: eGlow 3s ease-in-out infinite alternate; }
+    @keyframes ePulse { 0%,100%{transform:scale(1);opacity:.4} 50%{transform:scale(1.12);opacity:.9} }
+    @keyframes eGlow  { 0%{filter:brightness(.6);transform:scale(.8)} 100%{filter:brightness(1.6);transform:scale(1.2)} }
+
+    .intro h2 {
+      font-family: var(--serif); font-size: 2.6rem; font-weight: 300;
+      font-style: italic; letter-spacing: 4px; color: var(--text);
+      margin-bottom: 12px; opacity: 0; animation: fadeUp .9s .4s var(--ease) forwards;
+    }
+    .intro .intro-line {
+      width: 60px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(140,160,255,0.4), transparent);
+      margin-bottom: 14px; opacity: 0; animation: fadeUp .9s .5s var(--ease) forwards;
+    }
+    .intro p {
+      font-family: var(--mono); font-size: .6rem; letter-spacing: 5px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin-bottom: 16px; opacity: 0; animation: fadeUp .9s .6s var(--ease) forwards;
+    }
+    .intro .intro-explain {
+      font-family: var(--sans); font-size: .8rem;
+      color: var(--text-soft); text-align: center;
+      max-width: 280px; line-height: 1.7;
+      margin-bottom: 44px; opacity: 0; animation: fadeUp .9s .7s var(--ease) forwards;
+    }
+    .intro button {
+      padding: 18px 52px; border: 1px solid rgba(140,160,255,0.25);
+      border-radius: 60px; background: rgba(100,130,255,0.06);
+      color: rgba(200,215,255,0.9); font-family: var(--serif);
+      font-size: 1rem; font-weight: 400; font-style: italic; letter-spacing: 2px;
+      cursor: pointer; opacity: 0; animation: fadeUp .9s .9s var(--ease) forwards;
+      transition: all .4s var(--ease);
+      -webkit-appearance: none; appearance: none; position: relative; overflow: hidden;
+    }
+    .intro button:active { transform: scale(.95); background: rgba(100,130,255,0.12); }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ══════════ AMBIENT ══════════ */
+    .bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .orb { position: absolute; border-radius: 50%; filter: blur(100px); transition: all 3s var(--ease); }
+    .o1 { width: 500px; height: 500px; background: var(--s-glow1); top: -150px; left: -120px; animation: oF1 22s ease-in-out infinite alternate; }
+    .o2 { width: 400px; height: 400px; background: var(--s-glow2); bottom: -100px; right: -100px; animation: oF2 28s ease-in-out infinite alternate; }
+    .o3 { width: 260px; height: 260px; background: var(--s-glow3); top: 45%; left: 30%; opacity: .5; animation: oF3 16s ease-in-out infinite alternate; }
+    @keyframes oF1 { 0%{transform:translate(0,0)} 100%{transform:translate(60px,120px) scale(1.15)} }
+    @keyframes oF2 { 0%{transform:translate(0,0)} 100%{transform:translate(-90px,-100px) scale(1.2)} }
+    @keyframes oF3 { 0%{transform:translate(0,0)} 100%{transform:translate(50px,-60px) scale(1.4)} }
+
+    .grain {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    #waveCanvas { position: fixed; bottom: 0; left: 0; right: 0; height: 120px; z-index: 1; pointer-events: none; opacity: .25; }
+
+    .season-flash {
+      position: fixed; inset: 0; z-index: 100; pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, var(--s-glow1), transparent 70%);
+      opacity: 0;
+    }
+    .season-flash.fire { animation: flashPop .8s var(--ease) forwards; }
+    @keyframes flashPop { 0%{opacity:.7;transform:scale(.9)} 100%{opacity:0;transform:scale(1.2)} }
+
+    /* ══════════ APP ══════════ */
+    .app {
+      position: relative; z-index: 2; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 20px 16px 60px; gap: 20px;
+      opacity: 0; transition: opacity .8s .3s var(--ease);
+    }
+    .app.on { opacity: 1; }
+
+    /* ══════════ HEADER ══════════ */
+    .header { text-align: center; padding: 6px 0 0; }
+    .header h1 {
+      font-family: var(--serif); font-size: 2.2rem; font-weight: 300;
+      font-style: italic; letter-spacing: 3px; color: var(--text); line-height: 1.1;
+    }
+    .header .sep { display: block; width: 50px; height: 1px; margin: 10px auto; background: linear-gradient(90deg, transparent, var(--s-accent), transparent); }
+    .header .subtitle { font-family: var(--mono); font-size: .5rem; letter-spacing: 6px; text-transform: uppercase; color: var(--text-dim); }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-top: 12px; padding: 6px 18px; border-radius: 40px;
+      background: rgba(100,140,255,0.04); border: 1px solid rgba(100,140,255,0.08);
+    }
+    .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(52,211,153,0.45); animation: pBreathe 2.2s ease-in-out infinite; }
+    @keyframes pBreathe { 0%,100%{opacity:.35;transform:scale(.75)} 50%{opacity:1;transform:scale(1.25)} }
+    .pill span { font-family: var(--mono); font-size: .55rem; letter-spacing: 2px; color: var(--text-dim); }
+    .pill b { color: var(--green); font-weight: 600; font-size: .7rem; }
+
+    /* ══════════ TIMER ══════════ */
+    .timer-wrap { width: 100%; max-width: 440px; }
+    .timer-label { font-family: var(--mono); font-size: .45rem; letter-spacing: 3px; color: var(--text-dim); text-align: center; margin-bottom: 5px; text-transform: uppercase; }
+    .timer-track { width: 100%; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.04); overflow: hidden; }
+    .timer-fill { height: 100%; width: 0%; border-radius: 3px; background: linear-gradient(90deg, var(--s-accent), var(--s-accent2)); box-shadow: 0 0 12px var(--s-glow1); transition: width .3s linear, background 2s; }
+
+    /* ══════════ CARD ══════════ */
+    .card {
+      width: 100%; max-width: 440px; position: relative;
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: var(--radius); padding: 26px 18px 22px;
+      backdrop-filter: blur(40px) saturate(1.3); -webkit-backdrop-filter: blur(40px) saturate(1.3);
+      overflow: hidden;
+      transform: translateY(25px); opacity: 0; animation: cardIn .7s var(--smooth) forwards;
+      transition: background 2s var(--ease), border-color 2s var(--ease);
+    }
+    .card:nth-child(3) { animation-delay: .1s; }
+    .card:nth-child(4) { animation-delay: .2s; }
+    .card:nth-child(5) { animation-delay: .3s; }
+    @keyframes cardIn { to { opacity:1; transform:translateY(0); } }
+
+    .card::before {
+      content: ''; position: absolute; top: -60%; left: -20%; right: -20%; height: 100%;
+      background: radial-gradient(ellipse, var(--s-glow1), transparent 70%); pointer-events: none;
+    }
+    .card::after {
+      content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
+      background: linear-gradient(90deg, transparent, hsla(var(--s-h1),70%,65%,0.3), transparent);
+    }
+
+    /* Step header in card */
+    .step-header {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 8px;
+    }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--s-accent); color: var(--void);
+      font-family: var(--mono); font-size: .7rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 2s;
+    }
+    .step-title {
+      font-family: var(--serif); font-size: 1.25rem; font-weight: 400;
+      color: var(--text);
+    }
+    .step-subtitle {
+      position: relative; z-index: 1;
+      font-size: .7rem; color: var(--text-soft);
+      line-height: 1.5; margin-bottom: 18px; padding-left: 40px;
+    }
+
+    /* "Ton vote" indicator */
+    .your-vote {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 14px; padding-left: 40px;
+    }
+    .your-vote .yv-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 10px rgba(52,211,153,0.4);
+      animation: pBreathe 2s ease-in-out infinite;
+    }
+    .your-vote .yv-text {
+      font-family: var(--mono); font-size: .5rem;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--green);
+    }
+    .your-vote .yv-val {
+      font-family: var(--serif); font-size: .85rem;
+      font-style: italic; color: var(--text);
+      margin-left: 4px;
+    }
+    .your-vote.hidden { display: none; }
+
+    /* ══════════ SEASON BUTTONS ══════════ */
+    .season-grid {
+      position: relative; z-index: 1;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    }
+
+    .s-btn {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 18px 4px 16px;
+      border: 2px solid rgba(255,255,255,0.04);
+      border-radius: 16px; background: rgba(255,255,255,0.02);
+      cursor: pointer; transition: all .35s var(--ease); overflow: hidden;
+      -webkit-appearance: none; appearance: none;
+      color: var(--text); font-family: inherit; outline: none;
+    }
+    .s-btn .si { font-size: 1.6rem; transition: transform .5s var(--spring); position: relative; z-index: 1; filter: grayscale(0.6) opacity(0.5); transition: filter .35s, transform .5s var(--spring); }
+    .s-btn .sl {
+      font-family: var(--sans); font-size: .65rem; font-weight: 400;
+      opacity: .35; transition: all .35s var(--ease); position: relative; z-index: 1;
+    }
+
+    .s-btn .sg {
+      position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%);
+      width: 90px; height: 60px; border-radius: 50%; filter: blur(22px);
+      opacity: 0; transition: opacity .5s; pointer-events: none;
+    }
+    .s-btn[data-s="printemps"] .sg { background: rgba(134,239,172,0.6); }
+    .s-btn[data-s="ete"] .sg       { background: rgba(253,224,71,0.6); }
+    .s-btn[data-s="automne"] .sg   { background: rgba(251,146,60,0.6); }
+    .s-btn[data-s="hiver"] .sg     { background: rgba(147,197,253,0.6); }
+
+    /* ACTIVE = tres visible */
+    .s-btn.active {
+      border-color: var(--s-accent);
+      background: rgba(255,255,255,0.08);
+      box-shadow: 0 0 25px var(--s-glow1), inset 0 0 20px rgba(255,255,255,0.03);
+      transform: scale(1.02);
+    }
+    .s-btn.active .sg { opacity: .4; }
+    .s-btn.active .si { transform: scale(1.3) translateY(-3px); filter: grayscale(0) opacity(1); }
+    .s-btn.active .sl { opacity: 1; font-weight: 600; color: var(--text); }
+    .s-btn.active::after {
+      content: ''; position: absolute;
+      bottom: 5px; left: 50%; transform: translateX(-50%);
+      width: 20px; height: 3px; border-radius: 3px;
+      background: var(--s-accent); box-shadow: 0 0 12px var(--s-accent);
+    }
+
+    /* Checkmark on voted */
+    .s-btn .s-check {
+      position: absolute; top: 5px; right: 5px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .6rem; color: var(--void); font-weight: 700;
+      opacity: 0; transform: scale(0); transition: all .3s var(--spring); z-index: 3;
+    }
+    .s-btn.voted .s-check { opacity: 1; transform: scale(1); }
+
+    .s-btn:active { transform: scale(.91); }
+
+    /* Vote count under season btn */
+    .s-btn .s-count {
+      position: relative; z-index: 1;
+      font-family: var(--mono); font-size: .5rem; font-weight: 600;
+      color: var(--s-accent);
+      opacity: 0; transform: translateY(4px);
+      transition: all .3s var(--spring);
+    }
+    .s-btn .s-count.show { opacity: 1; transform: translateY(0); }
+    .s-btn .s-count .cnt-num { font-size: .65rem; }
+
+    /* Vote bar under season grid */
+    .vote-bars {
+      position: relative; z-index: 1;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      margin-top: 10px;
+    }
+    .vote-bar {
+      height: 4px; border-radius: 4px;
+      background: rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+    .vote-bar-fill {
+      height: 100%; width: 0%; border-radius: 4px;
+      transition: width .4s var(--ease), background .4s;
+    }
+    .vote-bar[data-s="printemps"] .vote-bar-fill { background: rgba(134,239,172,0.7); }
+    .vote-bar[data-s="ete"] .vote-bar-fill       { background: rgba(253,224,71,0.7); }
+    .vote-bar[data-s="automne"] .vote-bar-fill   { background: rgba(251,146,60,0.7); }
+    .vote-bar[data-s="hiver"] .vote-bar-fill     { background: rgba(147,197,253,0.7); }
+
+    /* Alter vote count */
+    .alter-btn .a-count {
+      position: relative; z-index: 1;
+      font-family: var(--mono); font-size: .45rem; font-weight: 600;
+      color: var(--text-dim);
+      opacity: 0; transition: all .3s var(--spring);
+      margin-top: 2px;
+    }
+    .alter-btn .a-count.show { opacity: 1; }
+    .alter-btn[data-a="gravite"] .a-count.show   { color: rgba(56,189,248,0.8); }
+    .alter-btn[data-a="temps"] .a-count.show     { color: rgba(250,204,21,0.8); }
+    .alter-btn[data-a="matiere"] .a-count.show   { color: rgba(168,85,247,0.8); }
+    .alter-btn[data-a="perception"] .a-count.show{ color: rgba(52,211,153,0.8); }
+
+    /* Chaos vote count */
+    .chaos-count {
+      position: relative; z-index: 2;
+      font-family: var(--mono); font-size: .5rem; font-weight: 600;
+      color: rgba(251,113,133,0.6);
+      text-align: center; margin-top: 10px;
+      opacity: 0; transition: opacity .3s;
+    }
+    .chaos-count.show { opacity: 1; }
+
+    /* ══════════ ALTER BUTTONS ══════════ */
+    .alter-grid {
+      position: relative; z-index: 1;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+
+    .alter-btn {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 22px 10px 18px;
+      border: 2px solid rgba(255,255,255,0.04); border-radius: 18px;
+      background: rgba(255,255,255,0.02); cursor: pointer; overflow: hidden;
+      transition: all .4s var(--ease);
+      -webkit-appearance: none; appearance: none;
+      color: var(--text); font-family: inherit; outline: none;
+    }
+
+    .alter-btn .a-orb {
+      position: relative; width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center; z-index: 1;
+    }
+    .alter-btn .a-ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.06); transition: all .5s var(--ease);
+    }
+    .alter-btn .a-icon {
+      font-size: 1.5rem; position: relative; z-index: 1;
+      transition: transform .5s var(--spring);
+      filter: grayscale(0.5) opacity(0.5); transition: filter .4s, transform .5s var(--spring);
+    }
+    .alter-btn .a-label {
+      font-family: var(--sans); font-size: .75rem; font-weight: 400;
+      opacity: .4; transition: all .4s var(--ease); position: relative; z-index: 1;
+    }
+    .alter-btn .a-desc {
+      font-family: var(--mono); font-size: .42rem; letter-spacing: 1.5px;
+      color: var(--text-dim); text-transform: uppercase; position: relative; z-index: 1;
+      max-height: 0; opacity: 0; overflow: hidden; transition: all .4s var(--ease);
+    }
+
+    .alter-btn .a-bg {
+      position: absolute; inset: 0; opacity: 0; transition: opacity .6s; pointer-events: none;
+    }
+    .alter-btn[data-a="gravite"] .a-bg   { background: radial-gradient(ellipse at 50% 35%, rgba(56,189,248,0.15), transparent 70%); }
+    .alter-btn[data-a="temps"] .a-bg     { background: radial-gradient(ellipse at 50% 35%, rgba(250,204,21,0.15), transparent 70%); }
+    .alter-btn[data-a="matiere"] .a-bg   { background: radial-gradient(ellipse at 50% 35%, rgba(168,85,247,0.15), transparent 70%); }
+    .alter-btn[data-a="perception"] .a-bg{ background: radial-gradient(ellipse at 50% 35%, rgba(52,211,153,0.15), transparent 70%); }
+
+    /* Couleurs de bordure par type */
+    .alter-btn[data-a="gravite"].active   { border-color: rgba(56,189,248,0.5); box-shadow: 0 0 25px rgba(56,189,248,0.12); }
+    .alter-btn[data-a="temps"].active     { border-color: rgba(250,204,21,0.5); box-shadow: 0 0 25px rgba(250,204,21,0.12); }
+    .alter-btn[data-a="matiere"].active   { border-color: rgba(168,85,247,0.5); box-shadow: 0 0 25px rgba(168,85,247,0.12); }
+    .alter-btn[data-a="perception"].active{ border-color: rgba(52,211,153,0.5); box-shadow: 0 0 25px rgba(52,211,153,0.12); }
+
+    .alter-btn.active { background: rgba(255,255,255,0.05); }
+    .alter-btn.active .a-bg { opacity: 1; }
+    .alter-btn.active .a-ring { border-color: rgba(255,255,255,0.2); transform: scale(1.08); }
+    .alter-btn.active .a-icon { transform: scale(1.2); filter: grayscale(0) opacity(1); }
+    .alter-btn.active .a-label { opacity: 1; font-weight: 600; }
+    .alter-btn.active .a-desc { opacity: 1; max-height: 22px; margin-top: 3px; }
+
+    /* "Selected" tag */
+    .alter-btn .a-tag {
+      position: absolute; top: 6px; left: 50%; transform: translateX(-50%) scale(0);
+      padding: 2px 10px; border-radius: 8px;
+      background: var(--green); color: var(--void);
+      font-family: var(--mono); font-size: .4rem; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      opacity: 0; transition: all .3s var(--spring); z-index: 3;
+    }
+    .alter-btn.active .a-tag { opacity: 1; transform: translateX(-50%) scale(1); }
+
+    .alter-btn:active { transform: scale(.94); }
+
+    .alter-btn[data-a="gravite"].active .a-icon  { animation: aFloat 2.5s ease-in-out infinite; }
+    .alter-btn[data-a="temps"].active .a-icon     { animation: aSpin 4s linear infinite; }
+    .alter-btn[data-a="matiere"].active .a-icon   { animation: aGlitch .3s ease-in-out infinite alternate; }
+    .alter-btn[data-a="perception"].active .a-icon{ animation: aPulse 1.5s ease-in-out infinite; }
+
+    @keyframes aFloat  { 0%,100%{transform:scale(1.2) translateY(0)} 50%{transform:scale(1.2) translateY(-6px)} }
+    @keyframes aSpin   { to{transform:scale(1.2) rotate(360deg)} }
+    @keyframes aGlitch { 0%{transform:scale(1.2) skewX(-3deg)} 100%{transform:scale(1.2) skewX(3deg)} }
+    @keyframes aPulse  { 0%,100%{transform:scale(1.15);filter:brightness(1)} 50%{transform:scale(1.3);filter:brightness(1.5)} }
+
+    /* ══════════ CHAOS ══════════ */
+    .chaos-btn {
+      position: relative; width: 100%; z-index: 1;
+      padding: 24px 20px; border-radius: 20px;
+      border: 2px solid rgba(251,113,133,0.12);
+      background: linear-gradient(145deg, rgba(180,40,80,0.10), rgba(120,30,60,0.06));
+      cursor: pointer; overflow: hidden;
+      -webkit-appearance: none; appearance: none;
+      color: var(--text); font-family: inherit; outline: none;
+      transition: all .5s var(--ease);
+    }
+    .chaos-btn .chaos-inner {
+      position: relative; z-index: 2;
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+    }
+    .chaos-btn .ch-icon { font-size: 2rem; transition: transform .5s var(--spring); filter: grayscale(0.3); transition: filter .4s, transform .5s var(--spring); }
+    .chaos-btn .ch-txt { text-align: left; }
+    .chaos-btn .ch-title { font-family: var(--serif); font-size: 1.1rem; font-weight: 400; font-style: italic; color: #fb7185; }
+    .chaos-btn .ch-sub { font-family: var(--mono); font-size: .42rem; letter-spacing: 2px; color: rgba(251,113,133,0.35); text-transform: uppercase; margin-top: 3px; }
+
+    .chaos-btn .chaos-glow {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 30% 40%, rgba(251,113,133,0.14), transparent 70%);
+      opacity: 0; transition: opacity .5s;
+    }
+
+    /* Voted */
+    .chaos-btn.voted {
+      border-color: rgba(251,113,133,0.45);
+      background: linear-gradient(145deg, rgba(180,40,80,0.2), rgba(120,30,60,0.12));
+      box-shadow: 0 0 30px rgba(251,113,133,0.1);
+    }
+    .chaos-btn.voted .chaos-glow { opacity: 1; }
+    .chaos-btn.voted .ch-icon { animation: chaosShake .25s ease-in-out infinite alternate; filter: grayscale(0); }
+
+    /* Voted tag */
+    .chaos-btn .ch-tag {
+      position: absolute; top: 8px; right: 10px;
+      padding: 3px 10px; border-radius: 8px;
+      background: #fb7185; color: var(--void);
+      font-family: var(--mono); font-size: .4rem; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      opacity: 0; transform: scale(0); transition: all .3s var(--spring); z-index: 3;
+    }
+    .chaos-btn.voted .ch-tag { opacity: 1; transform: scale(1); }
+
+    .chaos-btn.chaos-on { border-color: rgba(251,113,133,0.6); box-shadow: 0 0 50px rgba(251,113,133,0.15); }
+    .chaos-btn.chaos-on .ch-icon { animation: chaosShake .15s ease-in-out infinite alternate; transform: scale(1.2); filter: grayscale(0); }
+    @keyframes chaosShake { 0%{transform:rotate(-5deg)} 100%{transform:rotate(5deg)} }
+    .chaos-btn:active { transform: scale(.97); }
+
+    /* ══════════ INTENSITY ══════════ */
+    .intensity-section { position: relative; z-index: 1; margin-top: 16px; }
+    .intensity-title {
+      font-family: var(--sans); font-size: .7rem;
+      color: var(--text-soft); margin-bottom: 12px; text-align: center;
+    }
+    .intensity-row {
+      display: flex; align-items: center; gap: 14px; padding: 4px 0;
+    }
+    .int-label { font-family: var(--mono); font-size: .42rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); width: 44px; text-align: center; flex-shrink: 0; }
+    .slider-track { flex: 1; height: 44px; position: relative; display: flex; align-items: center; cursor: pointer; touch-action: none; }
+    .slider-bg { position: absolute; left: 0; right: 0; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.05); overflow: hidden; }
+    .slider-fill { height: 100%; width: 50%; border-radius: 4px; background: linear-gradient(90deg, var(--s-accent), var(--s-accent2)); transition: width .12s, background 2s; }
+    .slider-thumb {
+      position: absolute; left: 50%; width: 24px; height: 24px; border-radius: 50%;
+      background: var(--deep); border: 2.5px solid var(--s-accent);
+      box-shadow: 0 0 16px var(--s-glow1); transform: translateX(-50%);
+      transition: box-shadow .3s, border-color 2s; pointer-events: none;
+    }
+    .slider-thumb.drag { box-shadow: 0 0 24px var(--s-glow1); transform: translateX(-50%) scale(1.15); }
+    .int-val { font-family: var(--mono); font-size: .6rem; text-align: center; color: var(--text-dim); margin-top: 6px; letter-spacing: 2px; }
+
+    /* ══════════ RIPPLE / TOAST / STATUS ══════════ */
+    .ripple {
+      position: absolute; border-radius: 50%; background: rgba(255,255,255,0.12);
+      transform: scale(0); animation: rip .65s cubic-bezier(0,0,0.2,1);
+      pointer-events: none; z-index: 10;
+    }
+    @keyframes rip { to { transform:scale(4); opacity:0; } }
+
+    .toasts {
+      position: fixed; top: 38px; left: 50%; transform: translateX(-50%);
+      z-index: 500; display: flex; flex-direction: column; align-items: center;
+      gap: 8px; pointer-events: none; width: 88%; max-width: 340px;
+    }
+    .toast {
+      padding: 10px 24px; background: rgba(8,16,40,0.9);
+      border: 1px solid var(--card-border); border-radius: 14px;
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      font-family: var(--sans); font-size: .72rem; font-weight: 500;
+      color: var(--text-soft); text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      animation: tIn .4s var(--spring), tOut .4s 2.2s var(--ease) forwards;
+    }
+    .toast.chaos-toast { color: #fb7185; }
+    @keyframes tIn  { from{opacity:0;transform:translateY(-18px) scale(.9)} }
+    @keyframes tOut { to{opacity:0;transform:translateY(-8px) scale(.95)} }
+
+    .status {
+      display: flex; align-items: center; justify-content: center;
+      gap: 7px; padding: 6px 0 28px;
+      opacity: 0; animation: fadeUp .6s .8s var(--ease) forwards;
+    }
+    .s-dot { width: 5px; height: 5px; border-radius: 50%; background: #ef4444; transition: all .4s; }
+    .s-dot.on { background: var(--green); box-shadow: 0 0 10px rgba(52,211,153,0.5); }
+    .status span { font-family: var(--mono); font-size: .42rem; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; }
+
+    ::-webkit-scrollbar { width: 2px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(100,140,255,0.1); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- INTRO -->
+  <div class="intro" id="intro">
+    <div class="intro-eye">
+      <span class="eye-o"></span>
+      <span class="eye-m"></span>
+      <span class="eye-i"></span>
+    </div>
+    <h2>Manipulation</h2>
+    <div class="intro-line"></div>
+    <p>Experience immersive collective</p>
+    <div class="intro-explain">
+      Vous avez le pouvoir de modifier le monde VR d'un reveur.<br>
+      Votez pour changer sa realite en temps reel.
+    </div>
+    <button id="enterBtn">Commencer</button>
+  </div>
+
+  <!-- BG -->
+  <div class="bg-layer">
+    <div class="orb o1"></div>
+    <div class="orb o2"></div>
+    <div class="orb o3"></div>
+  </div>
+  <div class="grain"></div>
+  <canvas id="waveCanvas"></canvas>
+  <div class="season-flash" id="seasonFlash"></div>
+
+  <!-- APP -->
+  <div class="app" id="app">
+
+    <header class="header">
+      <h1>Manipulation</h1>
+      <span class="sep"></span>
+      <div class="subtitle">Alterez la realite du reveur</div>
+      <div class="pill">
+        <span class="pill-dot"></span>
+        <span><b id="count">0</b> connectes</span>
+      </div>
+    </header>
+
+    <!-- Timer -->
+    <div class="timer-wrap">
+      <div class="timer-label">Votes comptabilises dans <b id="timerSec">15</b>s</div>
+      <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+    </div>
+
+    <!-- STEP 1 : Saison -->
+    <section class="card">
+      <div class="step-header">
+        <span class="step-num">1</span>
+        <span class="step-title">Choisissez une saison</span>
+      </div>
+      <div class="step-subtitle">Appuyez sur une saison pour voter. La majorite l'emporte.</div>
+
+      <div class="your-vote hidden" id="yvSeason">
+        <span class="yv-dot"></span>
+        <span class="yv-text">Ton vote :</span>
+        <span class="yv-val" id="yvSeasonVal">-</span>
+      </div>
+
+      <div class="season-grid">
+        <button class="s-btn" data-s="printemps">
+          <div class="sg"></div>
+          <span class="s-check">&#10003;</span>
+          <span class="si">&#127800;</span>
+          <span class="sl">Printemps</span>
+          <span class="s-count" id="sc-printemps"><span class="cnt-num">0</span> vote</span>
+        </button>
+        <button class="s-btn" data-s="ete">
+          <div class="sg"></div>
+          <span class="s-check">&#10003;</span>
+          <span class="si">&#9728;&#65039;</span>
+          <span class="sl">Ete</span>
+          <span class="s-count" id="sc-ete"><span class="cnt-num">0</span> vote</span>
+        </button>
+        <button class="s-btn" data-s="automne">
+          <div class="sg"></div>
+          <span class="s-check">&#10003;</span>
+          <span class="si">&#127810;</span>
+          <span class="sl">Automne</span>
+          <span class="s-count" id="sc-automne"><span class="cnt-num">0</span> vote</span>
+        </button>
+        <button class="s-btn" data-s="hiver">
+          <div class="sg"></div>
+          <span class="s-check">&#10003;</span>
+          <span class="si">&#10052;&#65039;</span>
+          <span class="sl">Hiver</span>
+          <span class="s-count" id="sc-hiver"><span class="cnt-num">0</span> vote</span>
+        </button>
+      </div>
+      <div class="vote-bars">
+        <div class="vote-bar" data-s="printemps"><div class="vote-bar-fill" id="vbf-printemps"></div></div>
+        <div class="vote-bar" data-s="ete"><div class="vote-bar-fill" id="vbf-ete"></div></div>
+        <div class="vote-bar" data-s="automne"><div class="vote-bar-fill" id="vbf-automne"></div></div>
+        <div class="vote-bar" data-s="hiver"><div class="vote-bar-fill" id="vbf-hiver"></div></div>
+      </div>
+    </section>
+
+    <!-- STEP 2 : Alterer -->
+    <section class="card">
+      <div class="step-header">
+        <span class="step-num">2</span>
+        <span class="step-title">Alterez la realite</span>
+      </div>
+      <div class="step-subtitle">Choisissez un pouvoir pour deformer le monde du reveur.</div>
+
+      <div class="your-vote hidden" id="yvAlter">
+        <span class="yv-dot"></span>
+        <span class="yv-text">Ton vote :</span>
+        <span class="yv-val" id="yvAlterVal">-</span>
+      </div>
+
+      <div class="alter-grid">
+        <button class="alter-btn" data-a="gravite">
+          <div class="a-bg"></div>
+          <span class="a-tag">Selectionne</span>
+          <div class="a-orb"><div class="a-ring"></div><span class="a-icon">&#127756;</span></div>
+          <span class="a-label">Gravite</span>
+          <span class="a-desc">Inverser l'attraction</span>
+        </button>
+        <button class="alter-btn" data-a="temps">
+          <div class="a-bg"></div>
+          <span class="a-tag">Selectionne</span>
+          <div class="a-orb"><div class="a-ring"></div><span class="a-icon">&#9203;</span></div>
+          <span class="a-label">Temps</span>
+          <span class="a-desc">Dilater les secondes</span>
+        </button>
+        <button class="alter-btn" data-a="matiere">
+          <div class="a-bg"></div>
+          <span class="a-tag">Selectionne</span>
+          <div class="a-orb"><div class="a-ring"></div><span class="a-icon">&#128302;</span></div>
+          <span class="a-label">Matiere</span>
+          <span class="a-desc">Dissoudre le solide</span>
+        </button>
+        <button class="alter-btn" data-a="perception">
+          <div class="a-bg"></div>
+          <span class="a-tag">Selectionne</span>
+          <div class="a-orb"><div class="a-ring"></div><span class="a-icon">&#128065;</span></div>
+          <span class="a-label">Perception</span>
+          <span class="a-desc">Troubler les sens</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- STEP 3 : Chaos + Intensity -->
+    <section class="card">
+      <div class="step-header">
+        <span class="step-num">3</span>
+        <span class="step-title">Declenchez le chaos</span>
+      </div>
+      <div class="step-subtitle">Appuyez pour fracturer la realite. Si la majorite vote chaos, tout bascule.</div>
+
+      <button class="chaos-btn" id="chaosBtn">
+        <div class="chaos-glow"></div>
+        <span class="ch-tag">Vote !</span>
+        <div class="chaos-inner">
+          <span class="ch-icon">&#127744;</span>
+          <div class="ch-txt">
+            <div class="ch-title">Chaos</div>
+            <div class="ch-sub">Appuyez pour voter</div>
+          </div>
+        </div>
+      </button>
+
+      <div class="intensity-section">
+        <div class="intensity-title">Intensite de l'alteration</div>
+        <div class="intensity-row">
+          <span class="int-label">Subtil</span>
+          <div class="slider-track" id="sliderTrack">
+            <div class="slider-bg"><div class="slider-fill" id="sliderFill"></div></div>
+            <div class="slider-thumb" id="sliderThumb"></div>
+          </div>
+          <span class="int-label">Extreme</span>
+        </div>
+        <div class="int-val" id="intVal">50%</div>
+      </div>
+    </section>
+
+    <div class="status">
+      <span class="s-dot" id="sDot"></span>
+      <span id="sText">Connexion...</span>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    /* ═══ INTRO ═══ */
+    document.getElementById('enterBtn').addEventListener('click', () => {
+      document.getElementById('intro').classList.add('gone');
+      document.getElementById('app').classList.add('on');
+      vib(50);
+      setTimeout(() => document.getElementById('intro').style.display = 'none', 1300);
+    });
+
+    /* ═══ SOCKET ═══ */
+    const socket = io({ reconnection: true, reconnectionDelay: 1000 });
+    socket.on('connect', () => { document.getElementById('sDot').classList.add('on'); document.getElementById('sText').textContent = 'Connecte'; });
+    socket.on('disconnect', () => { document.getElementById('sDot').classList.remove('on'); document.getElementById('sText').textContent = 'Reconnexion...'; });
+    socket.on('spectators:count', n => { document.getElementById('count').textContent = n; });
+
+    /* ═══ SEASON ═══ */
+    const SEASONS = {
+      printemps: { h1: 145, h2: 170, h3: 320, name: 'Printemps' },
+      ete:       { h1: 40,  h2: 25,  h3: 10,  name: 'Ete' },
+      automne:   { h1: 25,  h2: 15,  h3: 350, name: 'Automne' },
+      hiver:     { h1: 215, h2: 240, h3: 280, name: 'Hiver' }
+    };
+
+    let currentSeason = 'printemps';
+    let mySeasonVote = null;
+
+    function applyTheme(key) {
+      const t = SEASONS[key]; if (!t) return;
+      const r = document.documentElement;
+      r.style.setProperty('--s-h1', t.h1);
+      r.style.setProperty('--s-h2', t.h2);
+      r.style.setProperty('--s-h3', t.h3);
+    }
+
+    function setSeasonUI(key, flash) {
+      currentSeason = key;
+      applyTheme(key);
+      // Highlight active in grid
+      document.querySelectorAll('.s-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.s === key);
+      });
+      if (flash) {
+        const fl = document.getElementById('seasonFlash');
+        fl.classList.remove('fire'); void fl.offsetWidth;
+        fl.classList.add('fire');
+        setTimeout(() => fl.classList.remove('fire'), 900);
+      }
+    }
+
+    const sBtns = document.querySelectorAll('.s-btn');
+    sBtns.forEach(btn => {
+      btn.addEventListener('click', e => {
+        ripple(e, btn);
+        const s = btn.dataset.s;
+
+        // Remove voted from previous
+        if (mySeasonVote) {
+          document.querySelector('.s-btn[data-s="'+mySeasonVote+'"]')?.classList.remove('voted');
+        }
+
+        mySeasonVote = s;
+        btn.classList.add('voted');
+        setSeasonUI(s, true);
+        socket.emit('vote:season', s);
+        vib();
+
+        // Show "your vote"
+        const yv = document.getElementById('yvSeason');
+        yv.classList.remove('hidden');
+        document.getElementById('yvSeasonVal').textContent = SEASONS[s]?.name || s;
+      });
+    });
+
+    /* ═══ ALTER ═══ */
+    const ALTER_NAMES = { gravite: 'Gravite', temps: 'Temps', matiere: 'Matiere', perception: 'Perception' };
+    let currentAlter = null;
+    const aBtns = document.querySelectorAll('.alter-btn');
+
+    aBtns.forEach(btn => {
+      btn.addEventListener('click', e => {
+        ripple(e, btn);
+        const a = btn.dataset.a;
+
+        if (currentAlter === a) {
+          btn.classList.remove('active');
+          currentAlter = null;
+          socket.emit('vote:alter', null);
+          document.getElementById('yvAlter').classList.add('hidden');
+          vib();
+          return;
+        }
+
+        aBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentAlter = a;
+        socket.emit('vote:alter', a);
+        vib(40);
+
+        const yv = document.getElementById('yvAlter');
+        yv.classList.remove('hidden');
+        document.getElementById('yvAlterVal').textContent = ALTER_NAMES[a] || a;
+      });
+    });
+
+    /* ═══ CHAOS ═══ */
+    const chaosBtn = document.getElementById('chaosBtn');
+    let myChaoVote = false;
+    chaosBtn.addEventListener('click', e => {
+      ripple(e, chaosBtn);
+      myChaoVote = true;
+      chaosBtn.classList.add('voted');
+      socket.emit('vote:chaos');
+      vib(80);
+      toast('Vote Chaos envoye !', true);
+    });
+
+    /* ═══ INTENSITY ═══ */
+    let intensity = 50;
+    const sliderTrack = document.getElementById('sliderTrack');
+    const sliderFill  = document.getElementById('sliderFill');
+    const sliderThumb = document.getElementById('sliderThumb');
+    const intVal      = document.getElementById('intVal');
+    let dragging = false;
+
+    function updateSlider(pct) {
+      pct = Math.max(0, Math.min(100, pct));
+      intensity = Math.round(pct);
+      sliderFill.style.width = pct + '%';
+      sliderThumb.style.left = pct + '%';
+      intVal.textContent = intensity + '%';
+    }
+    sliderTrack.addEventListener('pointerdown', e => {
+      dragging = true; sliderThumb.classList.add('drag');
+      sliderTrack.setPointerCapture(e.pointerId);
+      const r = sliderTrack.getBoundingClientRect();
+      updateSlider(((e.clientX - r.left) / r.width) * 100);
+    });
+    sliderTrack.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const r = sliderTrack.getBoundingClientRect();
+      updateSlider(((e.clientX - r.left) / r.width) * 100);
+    });
+    sliderTrack.addEventListener('pointerup', () => { dragging = false; sliderThumb.classList.remove('drag'); socket.emit('intensity:change', intensity); });
+    sliderTrack.addEventListener('pointercancel', () => { dragging = false; sliderThumb.classList.remove('drag'); });
+
+    /* ═══ SYNC ═══ */
+    socket.on('state:sync', st => {
+      setSeasonUI(st.season, false);
+      chaosBtn.classList.toggle('chaos-on', st.chaos);
+      document.getElementById('count').textContent = st.spectators;
+    });
+
+    socket.on('state:update', st => {
+      setSeasonUI(st.season, true);
+      chaosBtn.classList.toggle('chaos-on', st.chaos);
+
+      // Reset all vote states
+      mySeasonVote = null; myChaoVote = false; currentAlter = null;
+      sBtns.forEach(b => b.classList.remove('voted'));
+      aBtns.forEach(b => b.classList.remove('active'));
+      chaosBtn.classList.remove('voted');
+      document.getElementById('yvSeason').classList.add('hidden');
+      document.getElementById('yvAlter').classList.add('hidden');
+
+      const name = SEASONS[st.season]?.name || st.season;
+      toast('Resultat : ' + name + (st.chaos ? ' + Chaos !' : ''), st.chaos);
+      timerStart = Date.now();
+    });
+
+    socket.on('vote:accepted', d => {
+      if (d.type === 'season') toast('Vote enregistre : ' + (SEASONS[d.value]?.name || d.value));
+    });
+
+    /* ═══ TIMER ═══ */
+    const TICK = 15;
+    let timerStart = Date.now();
+    function tickTimer() {
+      const elapsed = ((Date.now() - timerStart) % (TICK * 1000)) / 1000;
+      const remaining = Math.ceil(TICK - elapsed);
+      document.getElementById('timerFill').style.width = ((elapsed / TICK) * 100) + '%';
+      document.getElementById('timerSec').textContent = remaining;
+      requestAnimationFrame(tickTimer);
+    }
+    tickTimer();
+
+    /* ═══ UTILS ═══ */
+    function ripple(e, el) {
+      const r = el.getBoundingClientRect();
+      const sz = Math.max(r.width, r.height);
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      const sp = document.createElement('span');
+      sp.className = 'ripple';
+      sp.style.cssText = 'width:'+sz+'px;height:'+sz+'px;left:'+(cx-r.left-sz/2)+'px;top:'+(cy-r.top-sz/2)+'px';
+      el.appendChild(sp);
+      sp.addEventListener('animationend', () => sp.remove());
+    }
+    function vib(ms) { if (navigator.vibrate) navigator.vibrate(ms || 25); }
+    function toast(msg, chaos) {
+      const t = document.createElement('div');
+      t.className = 'toast' + (chaos ? ' chaos-toast' : '');
+      t.textContent = msg;
+      document.getElementById('toasts').appendChild(t);
+      setTimeout(() => t.remove(), 2700);
+    }
+
+    /* ═══ WAVES ═══ */
+    (function() {
+      const c = document.getElementById('waveCanvas'), ctx = c.getContext('2d');
+      let w, h, t = 0;
+      function resize() { w = c.width = innerWidth; h = c.height = 120; }
+      addEventListener('resize', resize); resize();
+      (function draw() {
+        ctx.clearRect(0, 0, w, h); t += 0.006;
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          const amp = 14 + i * 7, freq = 0.004 + i * 0.002, spd = t * (1 + i * 0.25);
+          ctx.moveTo(0, h);
+          for (let x = 0; x <= w; x += 3)
+            ctx.lineTo(x, h * 0.5 + Math.sin(x * freq + spd) * amp + Math.sin(x * freq * 1.6 + spd * 0.7) * (amp * 0.3));
+          ctx.lineTo(w, h); ctx.closePath();
+          ctx.fillStyle = 'hsla(' + (220 + i * 35) + ',75%,55%,' + (0.045 - i * 0.012) + ')';
+          ctx.fill();
+        }
+        requestAnimationFrame(draw);
+      })();
+    })();
+
+    applyTheme('printemps');
+  </script>
+</body>
+</html>
